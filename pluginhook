@@ -1,0 +1,51 @@
+#!/usr/bin/env ruby
+
+require 'logger'
+require 'open3'
+
+level = ENV['PLUGIN_LOG_LEVEL'] || 'warn'
+level = level.upcase.to_sym
+
+logger = Logger.new STDOUT
+logger.level = if Logger.const_defined? level
+  Logger.const_get level
+else
+  Logger::WARN
+end
+
+plugin_path = ENV['PLUGIN_PATH'].to_s
+
+if plugin_path == ''
+  logger.error "Unable to locate plugins: set $PLUGIN_PATH"
+  exit 1
+end
+
+if ARGV.empty?
+  logger.error "Hook name argument is required"
+  exit 1
+end
+
+hook = ARGV.shift
+plugins = Dir.glob(File.join plugin_path, '*', hook)
+
+plugins.each do |plugin|
+  unless File.executable? plugin
+    logger.error "Plugin #{plugin} is not executable"
+    exit 1
+  end
+end
+
+logger.debug "Pluginhook calling hook '#{hook}' in plugins [#{plugins * ', '}] with args [#{ARGV * ', '}]"
+
+Open3.pipeline_rw(*plugins) do |stdin, stdout, threads|
+  if $stdin.isatty
+    stdin.puts ARGV * " "
+  else
+    stdin.puts $stdin.read
+  end
+
+  stdin.close
+  puts stdout.read
+
+  exit 1 unless threads.all? { |t| t.value.success? }
+end

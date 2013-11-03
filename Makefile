@@ -12,20 +12,17 @@ copyfiles:
 	cp dokku /usr/local/bin/dokku
 	mkdir -p /var/lib/dokku/plugins
 	cp -r plugins/* /var/lib/dokku/plugins
+	cp pluginhook /usr/local/bin/pluginhook
 
-plugins: pluginhook docker
+plugins: docker
 	dokku plugins-install
 
-dependencies: sshcommand pluginhook docker stack
+dependencies: sshcommand docker stack
 
 sshcommand:
 	wget -qO /usr/local/bin/sshcommand ${SSHCOMMAND_URL}
 	chmod +x /usr/local/bin/sshcommand
 	sshcommand create dokku /usr/local/bin/dokku
-
-pluginhook:
-	wget -qO /tmp/pluginhook_0.1.0_amd64.deb ${PLUGINHOOK_URL}
-	dpkg -i /tmp/pluginhook_0.1.0_amd64.deb
 
 docker: aufs
 	egrep -i "^docker" /etc/group || groupadd docker
@@ -33,7 +30,7 @@ docker: aufs
 	curl https://get.docker.io/gpg | apt-key add -
 	echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list
 	apt-get update
-	apt-get install -y lxc-docker 
+	apt-get install -y lxc-docker
 	sleep 2 # give docker a moment i guess
 
 aufs:
